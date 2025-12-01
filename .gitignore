@@ -1,0 +1,51 @@
+# Prerequisites
+*.d
+
+# Compiled Object files
+*.slo
+*.lo
+*.o
+*.obj
+
+# Precompiled Headers
+*.gch
+*.pch
+
+# Compiled Dynamic libraries
+*.so
+*.dylib
+*.dll
+
+# Fortran module files
+*.mod
+*.smod
+
+# Compiled Static libraries
+*.lai
+*.la
+*.a
+*.lib
+
+# Executables
+*.exe
+*.out
+*.app
+
+build/
+
+data.zip
+data/white.jpg
+data/Rocks002_2K/License
+data/Rocks002_2K/Rocks002_2K_AmbientOcclusion.png
+data/Rocks002_2K/Rocks002_2K_Color.png
+data/Rocks002_2K/Rocks002_2K_Displacement.png
+data/Rocks002_2K/Rocks002_2K_Normal.png
+data/Rocks002_2K/Rocks002_2K_Roughness.png
+data/earth/link_to_nasa.md
+data/wall/bricks2_disp.jpg
+data/wall/bricks2_normal.jpg
+data/wall/bricks2.jpg
+data/wall/LICENSE.md
+
+.DS_Store
+imgui.ini
