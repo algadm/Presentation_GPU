@@ -73,7 +73,7 @@ void Camera::draw_frame() const
 {
   if(prog_frame == -1)
   {
-    prog_frame = glhelper::create_program_from_file("./shaders/color.vert","./shaders/color.frag");
+    prog_frame = glhelper::create_program_from_file("./shaders/color/color.vert","./shaders/color/color.frag");
   }
   if(vao_frame == -1)
   {

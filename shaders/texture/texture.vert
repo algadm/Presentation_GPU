@@ -26,7 +26,7 @@ uniform vec3 LightPos;
 
 void main()
 {
-    float displacement = texture(myDisplacementSampler, vsData.texCoord).r;
+    float displacement = texture(myDisplacementSampler, texcoord).r;
     vec3 my_pos = position + normal * displacement * 0.2;
     gl_Position = Perspective * View * Model * vec4(my_pos, 1.0);
 
