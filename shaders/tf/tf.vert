@@ -6,6 +6,7 @@ uniform vec3 origin;
 uniform float mass;
 uniform float radius;
 uniform sampler2D myDisplacementSampler;
+uniform sampler2D myNormalSampler;
 
 out vec3 pos;
 out vec3 new_speed;
@@ -54,23 +55,30 @@ void main()
 
 
 
-
     // Sample displacement texture using spherical UVs
     float displacement = texture(myDisplacementSampler, sphere_uv).r;
     float displaced_radius = radius + displacement * 0.2f;
+
+    vec3 normal_ts = texture(myNormalSampler, sphere_uv).xyz;
+    normal_ts = normal_ts * 2.0 - 1.0;
+
+    vec3 T = normalize(vec3(-sin(az), 0.0, cos(az)));
+    vec3 B = normalize(cross(dir, T));
+    vec3 N = dir;    // radial normal
+    mat3 TBN = transpose(mat3(T, B, N));
+    vec3 normal_ws = normalize(TBN * normal_ts);
+
 
     float dist_next = length(next_pos - origin);
 
     if (dist_next < displaced_radius)
     {
         // Clamp position to displaced sphere surface
-        pos = origin + dir * displaced_radius;
+        pos = origin + dir * (displaced_radius + 0.0005f);
 
-        // Reflect velocity based on collision normal (which is dir)
-        new_speed = reflect(speed, dir) * 0.5;
-
-        if (length(new_speed) < 0.02)
-            new_speed = vec3(0.0);
+        vec3 n_s = dot(speed, normal_ws) * normal_ws;
+        vec3 t_s = speed - n_s;
+        new_speed  = -0.5 * n_s + 0.5 * t_s;
     }
     else
     {

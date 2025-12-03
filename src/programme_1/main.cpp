@@ -144,7 +144,8 @@ void init()
   glDeleteShader(vs_id);
   glDeleteShader(fs_id);
 
-  charge_texture(tf_program, "myDisplacementSampler", 1, "./data/Rocks002_2K/Rocks002_2K_Displacement.png");
+  charge_texture(tf_program, "myDisplacementSampler", 6, "./data/Rocks002_2K/Rocks002_2K_Displacement.png");
+  charge_texture(tf_program, "myNormalSampler", 7, "./data/Rocks002_2K/Rocks002_2K_Normal.png");
 
   glGenVertexArrays(1, &vao_particle);
   glBindVertexArray(vao_particle);
