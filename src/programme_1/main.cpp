@@ -39,9 +39,11 @@ GLuint tf_program;
 GLuint nframe;
 
 glm::vec3 origin(0.0f, 0.0f, 0.0f);
-float mass = 0.1f;
-float radius = 1.005f;
-float radius_spawn = 2.0f;
+const float mass = 0.1f;
+const float radius = 1.005f;
+const float radius_spawn = 2.0f;
+const float reflect_coef = 0.70f;
+const float friction_coef = 0.80f;
 
 std::chrono::high_resolution_clock::time_point start;
 
@@ -213,6 +215,9 @@ void display_callback()
   glUniform3fv(glGetUniformLocation(tf_program,"origin"),1,&origin[0]);
   glUniform1f(glGetUniformLocation(tf_program,"mass"), mass);
   glUniform1f(glGetUniformLocation(tf_program,"radius"), radius);
+  glUniform1f(glGetUniformLocation(tf_program,"reflect_coef"), reflect_coef);
+  glUniform1f(glGetUniformLocation(tf_program,"friction_coef"), friction_coef);
+
   // Use the buffer to fill with the TF information -> glBindBufferBase()
   glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, VBO[POSITION1]);
   glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 1, VBO[VITESSE1]);
@@ -282,19 +287,16 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
     switch (key)
     {
       case GLFW_KEY_LEFT:
-        light_theta += 0.05f;   // rotate left
+        light_theta += 0.1f;   // rotate left
         break;
       case GLFW_KEY_RIGHT:
-        light_theta -= 0.05f;   // rotate right
+        light_theta -= 0.1f;   // rotate right
         break;
       case GLFW_KEY_UP:
-        light_phi += 0.05f;     // rotate upward
-        // clamp: prevents flipping upside-down
-        light_phi = glm::clamp(light_phi, -1.5f, +1.5f);
+        light_phi += 0.1f;     // rotate upward
         break;
       case GLFW_KEY_DOWN:
-        light_phi -= 0.05f;     // rotate downward
-        light_phi = glm::clamp(light_phi, -1.5f, +1.5f);
+        light_phi -= 0.1f;     // rotate downward
         break;
       case GLFW_KEY_O:
         turn = !turn;

@@ -5,6 +5,8 @@ layout (location = 1) in vec3 speed;
 uniform vec3 origin;
 uniform float mass;
 uniform float radius;
+uniform float reflect_coef;
+uniform float friction_coef;
 uniform sampler2D myDisplacementSampler;
 uniform sampler2D myNormalSampler;
 
@@ -74,11 +76,11 @@ void main()
     if (dist_next < displaced_radius)
     {
         // Clamp position to displaced sphere surface
-        pos = origin + dir * (displaced_radius + 0.0005f);
+        pos = origin + dir * (displaced_radius + 0.05f);
 
         vec3 n_s = dot(speed, normal_ws) * normal_ws;
         vec3 t_s = speed - n_s;
-        new_speed  = -0.5 * n_s + 0.5 * t_s;
+        new_speed  = -reflect_coef * n_s + friction_coef * t_s;
     }
     else
     {
