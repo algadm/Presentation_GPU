@@ -24,14 +24,13 @@ uniform sampler2D myRoughnessSampler;
 // cam_dir the direction TO the camera (should be normalized),
 // color_mat the color of the object for the current fragment,
 // color_light the color of the light 
-vec3 phong(vec3 n, vec3 light_dir, vec3 cam_dir, vec3 color_mat, vec3 color_light, float ka, float kd, float ks, int shininess)
+vec3 phong(vec3 n, vec3 light_dir, vec3 cam_dir, vec3 color_mat, vec3 color_light, 
+           float ka, float kd, float ks, int shininess, float occlusion)
 {
-  n = normalize(n);  // IS IT NEEDED?
-
-  float ambiant = ka;
-  float diffuse = kd*clamp(dot(n, light_dir), 0.0, 1.0);
-  float specular = ks*pow(clamp(dot(cam_dir, reflect(-light_dir, n)), 0.0, 1.0), shininess);
-
+  n = normalize(n);
+  float ambiant = ka * occlusion;
+  float diffuse = kd * clamp(dot(n, light_dir), 0.0, 1.0) * occlusion;
+  float specular = ks * pow(clamp(dot(cam_dir, reflect(-light_dir, n)), 0.0, 1.0), shininess);
   return (ambiant + diffuse) * color_mat + specular * color_light;
 }
 
@@ -51,5 +50,5 @@ void main()
 
     // Use everything in camera space
   color = vec4(phong(normalize(normal_mat), normalize(vsData.light_TBN), -normalize(vsData.position_TBN),
-   color_mat, vec3(1.0, 1.0, 1.0), ka*color_occ, kd, ks, int(shininess)), 1.0);
+   color_mat, vec3(1.0, 1.0, 1.0), ka, kd, ks, int(shininess), color_occ), 1.0);
 }

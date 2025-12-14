@@ -205,7 +205,7 @@ namespace glhelper
 
   glm::vec3 compute_light_position(const float light_theta, const float light_phi)
   {
-      float radius = 1.0f; // distance of light from object
+      float radius = 10.0f; // distance of light from object
 
       float x = radius * cos(light_theta) * cos(light_phi);
       float y = radius * sin(light_phi);

@@ -100,7 +100,7 @@ target_include_directories(tools PUBLIC
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/src/tools)
 
 
-foreach(dir_n RANGE 1 1)
+foreach(dir_n RANGE 1 2)
   set(dir "programme_${dir_n}")
   
   message("Programme ${dir}" )
@@ -148,4 +148,5 @@ foreach(dir_n RANGE 1 1)
 endforeach()
 
 target_include_directories(programme_1 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/gl33/include)
+target_include_directories(programme_2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/gl33/include)
 # target_include_directories(programme_2 PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/third_party/glad/gl43/include)

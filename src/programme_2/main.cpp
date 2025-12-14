@@ -131,7 +131,7 @@ void init()
     << float(sizeof(float) * positions.size())/std::mega::num  << " Mbytes" << std::endl;
 
   // ########### For Transform Feedbacks ########### //
-  GLuint vs_id = glhelper::compile_shader(glhelper::read_file("shaders/tf/tf_demo.vert").c_str(),GL_VERTEX_SHADER);
+  GLuint vs_id = glhelper::compile_shader(glhelper::read_file("shaders/tf/tf.vert").c_str(),GL_VERTEX_SHADER);
   GLuint fs_id = glhelper::compile_shader(glhelper::read_file("shaders/basic/basic.frag").c_str(),GL_FRAGMENT_SHADER);
 
   tf_program = glCreateProgram();
@@ -250,6 +250,27 @@ void display_callback()
   glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 0, 0); 
   glEnableVertexAttribArray(1);
   // END TODO
+
+  glUseProgram(program_id);
+  glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0.0f, 1.0f, 0.0f));
+  glhelper::set_uniform_mat4(program_id, "Model", model);
+  glhelper::set_uniform_mat4(program_id, "View", cam.view());
+  glhelper::set_uniform_mat4(program_id, "Perspective", cam.projection());
+
+  glm::vec3 light_pos = glhelper::compute_light_position(light_theta, light_phi);
+  glhelper::set_uniform_vec3(program_id, "LightPos", light_pos);
+  glBindVertexArray(vao);
+  glDrawElements(GL_TRIANGLES, n_elements, GL_UNSIGNED_INT, 0);
+
+  if(tbn)
+  {
+    glUseProgram(program_tbn_id);
+    glhelper::set_uniform_mat4(program_tbn_id, "Model", model);
+    glhelper::set_uniform_mat4(program_tbn_id, "View", cam.view());
+    glhelper::set_uniform_mat4(program_tbn_id, "Perspective", cam.projection());
+    glBindVertexArray(vao);
+    glDrawElements(GL_TRIANGLES, n_elements, GL_UNSIGNED_INT, 0);
+  }
 
   CHECK_GL_ERROR();
 
