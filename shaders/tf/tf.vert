@@ -2,6 +2,8 @@
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 speed;
 
+uniform mat4 Model;
+uniform mat4 InvModel;
 uniform vec3 origin;
 uniform float mass;
 uniform float radius;
@@ -33,11 +35,14 @@ vec3 gravity_force(vec3 pos) {
 
 void main()
 {
+    vec3 pos_model   = (InvModel * vec4(position, 1.0)).xyz;
+    vec3 speed_model = (InvModel * vec4(speed, 0.0)).xyz;
+
     // Compute gravity toward center
-    vec3 g_force = gravity_force(position);
+    vec3 g_force = gravity_force(pos_model);
 
     // Compute next position with current velocity
-    vec3 next_pos = position + dt * speed;
+    vec3 next_pos = pos_model + dt * speed_model;
 
     // Compute spherical UV coordinates based on next_pos (or position)
     vec3 dir = normalize(next_pos - origin);
@@ -76,16 +81,19 @@ void main()
     if (dist_next < displaced_radius)
     {
         // Clamp position to displaced sphere surface
-        pos = origin + dir * (displaced_radius + 0.05f);
+        pos = origin + dir * (displaced_radius + 0.005f);
 
-        vec3 n_s = dot(speed, normal_ws) * normal_ws;
-        vec3 t_s = speed - n_s;
+        vec3 n_s = dot(speed_model, normal_ws) * normal_ws;
+        vec3 t_s = speed_model - n_s;
         new_speed  = -reflect_coef * n_s + friction_coef * t_s;
     }
     else
     {
         // No collision, move freely
         pos = next_pos;
-        new_speed = speed + dt * mass * g_force;
+        new_speed = speed_model + dt * mass * g_force;
     }
+
+    pos = (Model * vec4(pos, 1.0)).xyz;
+    new_speed = (Model * vec4(new_speed, 0.0)).xyz;
 }

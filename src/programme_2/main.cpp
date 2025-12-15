@@ -57,6 +57,8 @@ bool tbn = false;
 float light_theta = 0.0f; // horizontal rotation (left-right)
 float light_phi   = 90.0f; // vertical rotation (up-down)
 
+bool simulate_particles = false;
+
 
 void charge_texture(GLuint& program_id, std::string name, GLuint pos, std::string texture)
 {
@@ -121,7 +123,8 @@ void init()
       glm::vec3 dir = glm::normalize(0.2f*inward + 0.8f*random);
 
       float speed_mag = 0.5f; // tweak
-      glm::vec3 v = dir * speed_mag;
+      // glm::vec3 v = dir * speed_mag;
+      glm::vec3 v = inward * speed_mag;
 
       vitesses[3*i+0] = v.x;
       vitesses[3*i+1] = v.y;
@@ -208,30 +211,37 @@ void display_callback()
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
 
   cam.draw_frame();
-  // Disable rasterisation
-  glEnable(GL_RASTERIZER_DISCARD);
-  // Switch to tf program
-  glUseProgram(tf_program);
-  glUniform3fv(glGetUniformLocation(tf_program,"origin"),1,&origin[0]);
-  glUniform1f(glGetUniformLocation(tf_program,"mass"), mass);
-  glUniform1f(glGetUniformLocation(tf_program,"radius"), radius);
-  glUniform1f(glGetUniformLocation(tf_program,"reflect_coef"), reflect_coef);
-  glUniform1f(glGetUniformLocation(tf_program,"friction_coef"), friction_coef);
+  if (simulate_particles)
+  {
+    // Disable rasterisation
+    glEnable(GL_RASTERIZER_DISCARD);
+    // Switch to tf program
+    glUseProgram(tf_program);
+    glm::mat4 model = glm::rotate(glm::mat4(1.0f), angle, glm::vec3(0,1,0));
+    glm::mat4 invModel = glm::inverse(model);
+    glUniformMatrix4fv(glGetUniformLocation(tf_program,"Model"), 1, GL_FALSE, &model[0][0]);
+    glUniformMatrix4fv(glGetUniformLocation(tf_program,"InvModel"), 1, GL_FALSE, &invModel[0][0]);
+    glUniform3fv(glGetUniformLocation(tf_program,"origin"),1,&origin[0]);
+    glUniform1f(glGetUniformLocation(tf_program,"mass"), mass);
+    glUniform1f(glGetUniformLocation(tf_program,"radius"), radius);
+    glUniform1f(glGetUniformLocation(tf_program,"reflect_coef"), reflect_coef);
+    glUniform1f(glGetUniformLocation(tf_program,"friction_coef"), friction_coef);
 
-  // Use the buffer to fill with the TF information -> glBindBufferBase()
-  glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, VBO[POSITION1]);
-  glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 1, VBO[VITESSE1]);
-  // Use the good VAO, be sure the pointers to data are valid
-  glBindVertexArray(vao_particle);
-  // Start the TF and "draw" points
-  glBeginTransformFeedback(GL_POINTS);
-  glDrawArrays(GL_POINTS, 0, NB_PARTICULES);
-  glEndTransformFeedback();
-  // Wait for the buffer to be filled
-  glFlush();
-  // Swap read and write buffers
-  glDisable(GL_RASTERIZER_DISCARD);
-  //END TODO
+    // Use the buffer to fill with the TF information -> glBindBufferBase()
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, VBO[POSITION1]);
+    glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 1, VBO[VITESSE1]);
+    // Use the good VAO, be sure the pointers to data are valid
+    glBindVertexArray(vao_particle);
+    // Start the TF and "draw" points
+    glBeginTransformFeedback(GL_POINTS);
+    glDrawArrays(GL_POINTS, 0, NB_PARTICULES);
+    glEndTransformFeedback();
+    // Wait for the buffer to be filled
+    glFlush();
+    // Swap read and write buffers
+    glDisable(GL_RASTERIZER_DISCARD);
+    //END TODO
+  }
 
   glUseProgram(draw_particles);
   set_uniform_mvp(draw_particles);
@@ -298,6 +308,9 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
       case GLFW_KEY_DOWN:
         light_phi -= 0.1f;     // rotate downward
         break;
+      case GLFW_KEY_S:
+        simulate_particles = true;
+        break;
       case GLFW_KEY_O:
         turn = !turn;
     break;
@@ -322,7 +335,7 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
 void reshape_callback(GLFWwindow* window, int width, int height)
 {
   cam.common_reshape(width,height);
-  glViewport(0,0, 2*width, 2*height);
+  glViewport(0,0, width, height);
 }
 
 void motion_callback(GLFWwindow* window)
@@ -393,6 +406,7 @@ int main(int argc, char** argv)
     ImGui::Text("'f' to toggle TBN display");
     ImGui::Text("'w' to toggle wireframe");
     ImGui::Text("'p' to print screen");
+    ImGui::Text("'s' or to start simulation");
     ImGui::Text("'q' or esc to quit");
     ImGui::End();
 

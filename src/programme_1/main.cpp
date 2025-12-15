@@ -301,7 +301,7 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
 void reshape_callback(GLFWwindow* window, int width, int height)
 {
   cam.common_reshape(width,height);
-  glViewport(0,0, 2*width, 2*height);
+  glViewport(0,0, width, height);
 }
 
 void motion_callback(GLFWwindow* window)
