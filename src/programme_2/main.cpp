@@ -3,6 +3,7 @@
 #include <fstream>
 #include <random>
 
+
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
 #include "imgui_impl_opengl3.h"
@@ -36,6 +37,16 @@ GLuint program_tbn_id;
 GLuint draw_particles;
 GLuint tf_program;
 
+GLuint vao_frankie_3;
+GLuint n_elements_frankie_3;
+GLuint texture_frankie_3;
+GLuint program_frankie_3;
+
+GLuint vao_frankie_4;
+GLuint n_elements_frankie_4;
+GLuint texture_frankie_4;
+GLuint program_frankie_4;
+
 GLuint nframe;
 
 glm::vec3 origin(0.0f, 0.0f, 0.0f);
@@ -59,6 +70,9 @@ float light_phi   = 90.0f; // vertical rotation (up-down)
 
 bool simulate_particles = false;
 
+float frankie_cam_theta = 0.0f; // horizontal rotation (left-right)
+float frankie_cam_phi   = 0.0f; // vertical rotation (up-down)
+
 
 void charge_texture(GLuint& program_id, std::string name, GLuint pos, std::string texture)
 {
@@ -75,6 +89,9 @@ void init()
   program_tbn_id = glhelper::create_program_from_file("shaders/texture/texture.vert","shaders/texture/normal.geom", "shaders/color/color.frag");
   program_id = glhelper::create_program_from_file("shaders/texture/texture.vert","shaders/texture/texture.frag");
   draw_particles = glhelper::create_program_from_file("shaders/basic/basic.vert", "shaders/basic/basic.frag");
+  program_frankie_3 = glhelper::create_program_from_file("shaders/shaders_frankie/frankie_3.vert", "shaders/shaders_frankie/frankie_3.geom", "shaders/shaders_frankie/frankie_3.frag");
+  program_frankie_4 = glhelper::create_program_from_file("shaders/shaders_frankie/frankie_4.vert", "shaders/shaders_frankie/frankie_4.geom", "shaders/shaders_frankie/frankie_4.frag");
+
 
   Mesh m = Mesh::create_sphere(200, 200);
   n_elements = m.size_element();
@@ -91,7 +108,18 @@ void init()
   // Roughness
   charge_texture(program_id, "myRoughnessSampler", 5, "./data/Rocks002_2K/Rocks002_2K_Roughness.png");
 
+  Mesh m_frankie_3 = Mesh::load_from_file("data/Frankie/Frankie.obj");
+  m_frankie_3.compute_normales();
+  n_elements_frankie_3= m_frankie_3.size_element();
+  vao_frankie_3 = m_frankie_3.load_to_gpu();
+
+  glActiveTexture(GL_TEXTURE0);
+  texture_frankie_3 = glhelper::load_texture("data/Frankie/flyingsquirrel_skin_col.png");
   
+  Mesh m_frankie_4 = Mesh::load_from_file("data/Frankie/Frankie.obj");
+  m_frankie_4.compute_normales();
+  n_elements_frankie_4 = m_frankie_4.size_element();
+  vao_frankie_4 = m_frankie_4.load_to_gpu();
 
   std::vector<GLfloat> positions(NB_PARTICULES*3);
   std::vector<GLfloat> vitesses(NB_PARTICULES*3);
@@ -206,6 +234,55 @@ void set_uniform_mvp(GLuint program)
   glUseProgram(current_prog_id);
 }
 
+void set_uniform_time(GLuint program)
+{
+  GLint time_id = glGetUniformLocation(program, "t");
+  if (time_id != -1)
+  {
+      float t = glfwGetTime();
+      glUseProgram(program);
+      glUniform1f(time_id, t);
+  }
+}
+
+void set_uniform_frankie_cam(GLuint program)
+{
+  glUseProgram(program);
+
+  GLint thetaLoc = glGetUniformLocation(program, "frankie_cam_theta");
+  GLint phiLoc   = glGetUniformLocation(program, "frankie_cam_phi");
+
+  if (thetaLoc != -1)
+      glUniform1f(thetaLoc, glm::radians(frankie_cam_theta));
+
+  if (phiLoc != -1)
+      glUniform1f(phiLoc, glm::radians(frankie_cam_phi));
+}
+
+void setUniformVec3(GLuint program, const std::string& name, const glm::vec3& value)
+{
+    GLint loc = glGetUniformLocation(program, name.c_str());
+    if (loc != -1)
+    {
+        glUseProgram(program);
+        glUniform3fv(loc, 1, &value[0]);
+    }
+}
+
+
+glm::vec3 getFrankieCamPosition(float radius, float thetaDeg, float phiDeg)
+{
+  float theta = glm::radians(thetaDeg);
+  float phi   = glm::radians(phiDeg);
+
+  float x = radius * cos(phi) * cos(theta);
+  float y = radius * sin(phi);
+  float z = radius * cos(phi) * sin(theta);
+
+  return glm::vec3(x, y, z);
+}
+
+
 void display_callback()
 {
   glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -284,6 +361,25 @@ void display_callback()
 
   CHECK_GL_ERROR();
 
+  glUseProgram(program_frankie_3);  CHECK_GL_ERROR();
+  glBindVertexArray(vao_frankie_3);  CHECK_GL_ERROR();
+  set_uniform_mvp(program_frankie_3);  CHECK_GL_ERROR();
+  set_uniform_time(program_frankie_3);  CHECK_GL_ERROR();
+  glm::vec3 frankieCamPos = getFrankieCamPosition(2.0f, frankie_cam_theta, frankie_cam_phi);
+  setUniformVec3(program_frankie_3, "frankie_cam_pos", frankieCamPos);
+  glDrawElements(GL_TRIANGLES, n_elements_frankie_3, GL_UNSIGNED_INT, 0);
+
+  CHECK_GL_ERROR();
+
+  glUseProgram(program_frankie_4);  CHECK_GL_ERROR();
+  glBindVertexArray(vao_frankie_4);  CHECK_GL_ERROR();
+  set_uniform_mvp(program_frankie_4);  CHECK_GL_ERROR();
+  set_uniform_time(program_frankie_4);  CHECK_GL_ERROR();
+  set_uniform_frankie_cam(program_frankie_4);
+  glDrawElements(GL_TRIANGLES, n_elements_frankie_4, GL_UNSIGNED_INT, 0);
+
+  CHECK_GL_ERROR();
+
   glBindVertexArray(0);
   compute_fps();
 }
@@ -308,19 +404,36 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
       case GLFW_KEY_DOWN:
         light_phi -= 0.1f;     // rotate downward
         break;
+      
+      case GLFW_KEY_J:
+        frankie_cam_theta += 5.0f;   // frankie_cam rotate left
+        break;
+      case GLFW_KEY_L:
+        frankie_cam_theta -= 5.0f;   // frankie_cam rotate right
+
+        break;
+      case GLFW_KEY_I:
+        frankie_cam_phi += 5.0f;     // frankie_cam rotate upward
+        frankie_cam_phi = glm::clamp(frankie_cam_phi, -80.0f, 80.0f);
+        break;
+      case GLFW_KEY_K:
+        frankie_cam_phi -= 5.0f;     // frankie_cam rotate downward
+        frankie_cam_phi = glm::clamp(frankie_cam_phi, -80.0f, 80.0f);
+        break;
+      
       case GLFW_KEY_S:
         simulate_particles = true;
         break;
       case GLFW_KEY_O:
         turn = !turn;
-    break;
+        break;
       case GLFW_KEY_F:
         tbn = !tbn;
-      break;
+        break;
       case GLFW_KEY_W:
         glGetIntegerv(GL_POLYGON_MODE, &polygonMode);
         glPolygonMode(GL_FRONT_AND_BACK, polygonMode == GL_LINE ? GL_FILL : GL_LINE);
-    break;
+        break;
       case GLFW_KEY_P:
         glGetIntegerv(GL_VIEWPORT, viewport);
         glhelper::print_screen(viewport[2], viewport[3]);

@@ -15,7 +15,7 @@ uniform sampler2D myNormalSampler;
 out vec3 pos;
 out vec3 new_speed;
 
-const float dt = 0.001;
+const float dt = 0.01;
 
 // generate pseudo-random vector from speed
 vec3 rand(vec3 s) {
