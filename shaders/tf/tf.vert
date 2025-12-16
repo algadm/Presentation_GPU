@@ -1,7 +1,10 @@
 #version 330 core
+
 layout (location = 0) in vec3 position;
 layout (location = 1) in vec3 speed;
 
+/* ===== Uniforms ===== */
+uniform float dt;
 uniform mat4 Model;
 uniform mat4 InvModel;
 uniform vec3 origin;
@@ -9,91 +12,91 @@ uniform float mass;
 uniform float radius;
 uniform float reflect_coef;
 uniform float friction_coef;
+
 uniform sampler2D myDisplacementSampler;
 uniform sampler2D myNormalSampler;
 
+/* ===== Transform Feedback outputs ===== */
 out vec3 pos;
 out vec3 new_speed;
 
-const float dt = 0.01;
+/* ===== Constants ===== */
+const float PI = 3.14159265359;
 
-// generate pseudo-random vector from speed
-vec3 rand(vec3 s) {
-    return vec3(
-        fract(sin(dot(s.xyz ,vec3(12.9898,78.233,144.7272))) * 43758.5453),
-        fract(sin(dot(s.zxy ,vec3(12.9898,78.233,144.7272))) * 43758.5453),
-        fract(sin(dot(s.yxz ,vec3(12.9898,78.233,144.7272))) * 43758.5453)
-    );
-}
-
-// gravity that points toward the center
-vec3 gravity_force(vec3 pos) {
-    vec3 dir = normalize(origin - pos);
-    float strength = 9.8;   // adjust if you want
-    return dir * strength;
+/* ===== Gravity toward center ===== */
+vec3 gravity_force(vec3 p)
+{
+    vec3 dir = normalize(origin - p);
+    return dir * 9.8;
 }
 
 void main()
 {
+    /* ===== Transform to model space ===== */
     vec3 pos_model   = (InvModel * vec4(position, 1.0)).xyz;
-    vec3 speed_model = (InvModel * vec4(speed, 0.0)).xyz;
+    vec3 speed_model = (InvModel * vec4(speed,    0.0)).xyz;
 
-    // Compute gravity toward center
-    vec3 g_force = gravity_force(pos_model);
-
-    // Compute next position with current velocity
+    /* ===== Predict next position ===== */
     vec3 next_pos = pos_model + dt * speed_model;
 
-    // Compute spherical UV coordinates based on next_pos (or position)
+    /* ===== Direction from center ===== */
     vec3 dir = normalize(next_pos - origin);
-    float PI = 3.14159265359;
 
-    // Compute azimuth angle az in [-pi, pi]
-    float az = atan(dir.z, dir.x);
+    /* ===== Spherical UV mapping ===== */
+    float az = atan(dir.z, dir.x);          // [-pi, pi]
+    float el = asin(clamp(dir.y, -1.0, 1.0)); // [-pi/2, pi/2]
 
-    // Map az to [0,1] and flip u to match mesh
-    float u_tex = 1.0 - (az / (2.0 * PI) + 0.5);
+    float u = 1.0 - (az / (2.0 * PI) + 0.5);
+    float v = el / PI + 0.5;
+    vec2 sphere_uv = vec2(u, v);
 
-    // Compute elevation angle el in [-pi/2, pi/2] and map to [0,1]
-    float el = asin(dir.y);
-    float v_tex = (el / PI) + 0.5;
-
-    vec2 sphere_uv = vec2(u_tex, v_tex);
-
-
-
-    // Sample displacement texture using spherical UVs
+    /* ===== Displacement ===== */
     float displacement = texture(myDisplacementSampler, sphere_uv).r;
-    float displaced_radius = radius + displacement * 0.2f;
+    float displaced_radius = radius + displacement * 0.2;
 
-    vec3 normal_ts = texture(myNormalSampler, sphere_uv).xyz;
-    normal_ts = normal_ts * 2.0 - 1.0;
+    /* ===== Normal mapping ===== */
+    vec3 normal_ts = texture(myNormalSampler, sphere_uv).xyz * 2.0 - 1.0;
 
     vec3 T = normalize(vec3(-sin(az), 0.0, cos(az)));
     vec3 B = normalize(cross(dir, T));
-    vec3 N = dir;    // radial normal
-    mat3 TBN = transpose(mat3(T, B, N));
+    vec3 N = dir;
+
+    mat3 TBN = mat3(T, B, N);
     vec3 normal_ws = normalize(TBN * normal_ts);
 
-
+    /* ===== Collision test ===== */
     float dist_next = length(next_pos - origin);
 
     if (dist_next < displaced_radius)
     {
-        // Clamp position to displaced sphere surface
-        pos = origin + dir * (displaced_radius + 0.005f);
+        /* ---- Collision response ---- */
+        pos = origin + dir * (displaced_radius + 0.005);
 
-        vec3 n_s = dot(speed_model, normal_ws) * normal_ws;
-        vec3 t_s = speed_model - n_s;
-        new_speed  = -reflect_coef * n_s + friction_coef * t_s;
+        float vn = dot(speed_model, normal_ws);
+
+        if (vn < 0.0)
+        {
+            vec3 v_n = vn * normal_ws;
+            vec3 v_t = speed_model - v_n;
+            new_speed = -reflect_coef * v_n + friction_coef * v_t;
+        }
+        else
+        {
+            new_speed = speed_model;
+        }
+
+        vec3 g = gravity_force(pos);
+        g -= normal_ws * min(0.0, dot(g, normal_ws));
+        new_speed += dt * mass * g;
     }
     else
     {
-        // No collision, move freely
+        /* ---- Free motion ---- */
         pos = next_pos;
-        new_speed = speed_model + dt * mass * g_force;
+        new_speed = speed_model + dt * mass * gravity_force(pos_model);
     }
 
-    pos = (Model * vec4(pos, 1.0)).xyz;
+    /* ===== Back to world space ===== */
+    pos       = (Model * vec4(pos,       1.0)).xyz;
     new_speed = (Model * vec4(new_speed, 0.0)).xyz;
 }

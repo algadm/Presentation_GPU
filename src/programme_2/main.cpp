@@ -57,6 +57,7 @@ const float reflect_coef = 0.70f;
 const float friction_coef = 0.80f;
 
 std::chrono::high_resolution_clock::time_point start;
+double delta_time;
 
 // value for the rotation of the model
 bool turn = false;
@@ -73,6 +74,10 @@ bool simulate_particles = false;
 float frankie_cam_theta = 0.0f; // horizontal rotation (left-right)
 float frankie_cam_phi   = 0.0f; // vertical rotation (up-down)
 
+std::vector<GLfloat> positions(NB_PARTICULES*3);
+std::vector<GLfloat> vitesses(NB_PARTICULES*3);
+
+
 
 void charge_texture(GLuint& program_id, std::string name, GLuint pos, std::string texture)
 {
@@ -82,6 +87,62 @@ void charge_texture(GLuint& program_id, std::string name, GLuint pos, std::strin
   glActiveTexture(GL_TEXTURE0+pos);
 
   glhelper::load_texture(texture);
+}
+
+void spawn_particles_cpu(std::vector<GLfloat>& positions, std::vector<GLfloat>& vitesses)
+{
+    std::default_random_engine gen;
+    std::uniform_real_distribution<float> distAngle(-1.0f, 1.0f);
+    for (unsigned i = 0; i < NB_PARTICULES; ++i)
+    {
+        // ---- 1) Random point on sphere ----
+        glm::vec3 p;
+        while (true) {
+            p = glm::vec3(distAngle(gen), distAngle(gen), distAngle(gen));
+            float len2 = glm::dot(p, p);
+            if (len2 > 0.001f && len2 <= 1.f) {
+                p = glm::normalize(p) * radius_spawn;
+                break;
+            }
+        }
+
+        positions[3*i+0] = p.x;
+        positions[3*i+1] = p.y;
+        positions[3*i+2] = p.z;
+
+        // ---- 2) Random velocity but biased towards center ----
+        glm::vec3 inward = glm::normalize(-p);
+        glm::vec3 random = glm::normalize(glm::vec3(distAngle(gen), distAngle(gen), distAngle(gen)));
+
+        // Blend: mostly inward but still with tangential randomness
+        glm::vec3 dir = glm::normalize(0.2f*inward + 0.8f*random);
+
+        float speed_mag = 0.5f; // tweak
+        glm::vec3 v = dir * speed_mag;
+        // glm::vec3 v = inward * speed_mag;
+
+        vitesses[3*i+0] = v.x;
+        vitesses[3*i+1] = v.y;
+        vitesses[3*i+2] = v.z;
+    }
+}
+
+void respawn_particles_cpu(std::vector<GLfloat>& positions, std::vector<GLfloat>& vitesses)
+{
+  spawn_particles_cpu(positions, vitesses);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO[POSITION0]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*positions.size(), positions.data(), GL_DYNAMIC_DRAW);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO[VITESSE0]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*vitesses.size(),vitesses.data(), GL_DYNAMIC_DRAW);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO[POSITION1]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*positions.size(), positions.data(), GL_DYNAMIC_DRAW);
+
+  glBindBuffer(GL_ARRAY_BUFFER, VBO[VITESSE1]);
+  glBufferData(GL_ARRAY_BUFFER, sizeof(GLfloat)*vitesses.size(),vitesses.data(), GL_DYNAMIC_DRAW);
+
 }
 
 void init()
@@ -108,56 +169,9 @@ void init()
   // Roughness
   charge_texture(program_id, "myRoughnessSampler", 5, "./data/Rocks002_2K/Rocks002_2K_Roughness.png");
 
-  Mesh m_frankie_3 = Mesh::load_from_file("data/Frankie/Frankie.obj");
-  m_frankie_3.compute_normales();
-  n_elements_frankie_3= m_frankie_3.size_element();
-  vao_frankie_3 = m_frankie_3.load_to_gpu();
 
-  glActiveTexture(GL_TEXTURE0);
-  texture_frankie_3 = glhelper::load_texture("data/Frankie/flyingsquirrel_skin_col.png");
-  
-  Mesh m_frankie_4 = Mesh::load_from_file("data/Frankie/Frankie.obj");
-  m_frankie_4.compute_normales();
-  n_elements_frankie_4 = m_frankie_4.size_element();
-  vao_frankie_4 = m_frankie_4.load_to_gpu();
+  spawn_particles_cpu(positions,vitesses);
 
-  std::vector<GLfloat> positions(NB_PARTICULES*3);
-  std::vector<GLfloat> vitesses(NB_PARTICULES*3);
-
-  std::default_random_engine gen;
-  std::uniform_real_distribution<float> distAngle(-1.0f, 1.0f);
-  for (unsigned i = 0; i < NB_PARTICULES; ++i)
-  {
-      // ---- 1) Random point on sphere ----
-      glm::vec3 p;
-      while (true) {
-          p = glm::vec3(distAngle(gen), distAngle(gen), distAngle(gen));
-          float len2 = glm::dot(p, p);
-          if (len2 > 0.001f && len2 <= 1.f) {
-              p = glm::normalize(p) * radius_spawn;
-              break;
-          }
-      }
-
-      positions[3*i+0] = p.x;
-      positions[3*i+1] = p.y;
-      positions[3*i+2] = p.z;
-
-      // ---- 2) Random velocity but biased towards center ----
-      glm::vec3 inward = glm::normalize(-p);
-      glm::vec3 random = glm::normalize(glm::vec3(distAngle(gen), distAngle(gen), distAngle(gen)));
-
-      // Blend: mostly inward but still with tangential randomness
-      glm::vec3 dir = glm::normalize(0.2f*inward + 0.8f*random);
-
-      float speed_mag = 0.5f; // tweak
-      // glm::vec3 v = dir * speed_mag;
-      glm::vec3 v = inward * speed_mag;
-
-      vitesses[3*i+0] = v.x;
-      vitesses[3*i+1] = v.y;
-      vitesses[3*i+2] = v.z;
-  }
   std::cout << "Size particules in RAM : " 
     << float(sizeof(float) * positions.size())/std::mega::num  << " Mbytes" << std::endl;
 
@@ -202,6 +216,19 @@ void init()
 
   glEnable(GL_DEPTH_TEST);
   glClearColor(0.3f, 0.3f, 0.3f, 1.0f);
+
+  Mesh m_frankie_3 = Mesh::load_from_file("data/Frankie/Frankie.obj");
+  m_frankie_3.compute_normales();
+  n_elements_frankie_3= m_frankie_3.size_element();
+  vao_frankie_3 = m_frankie_3.load_to_gpu();
+
+  glActiveTexture(GL_TEXTURE0);
+  texture_frankie_3 = glhelper::load_texture("data/Frankie/flyingsquirrel_skin_col.png");
+  
+  Mesh m_frankie_4 = Mesh::load_from_file("data/Frankie/Frankie.obj");
+  m_frankie_4.compute_normales();
+  n_elements_frankie_4 = m_frankie_4.size_element();
+  vao_frankie_4 = m_frankie_4.load_to_gpu();
 
   start = std::chrono::high_resolution_clock::now();
 }
@@ -303,6 +330,7 @@ void display_callback()
     glUniform1f(glGetUniformLocation(tf_program,"radius"), radius);
     glUniform1f(glGetUniformLocation(tf_program,"reflect_coef"), reflect_coef);
     glUniform1f(glGetUniformLocation(tf_program,"friction_coef"), friction_coef);
+    glUniform1f(glGetUniformLocation(tf_program,"dt"), delta_time);
 
     // Use the buffer to fill with the TF information -> glBindBufferBase()
     glBindBufferBase(GL_TRANSFORM_FEEDBACK_BUFFER, 0, VBO[POSITION1]);
@@ -410,7 +438,6 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
         break;
       case GLFW_KEY_L:
         frankie_cam_theta -= 5.0f;   // frankie_cam rotate right
-
         break;
       case GLFW_KEY_I:
         frankie_cam_phi += 5.0f;     // frankie_cam rotate upward
@@ -419,6 +446,11 @@ void keyboard_callback(GLFWwindow* window, int key, int scancode, int action, in
       case GLFW_KEY_K:
         frankie_cam_phi -= 5.0f;     // frankie_cam rotate downward
         frankie_cam_phi = glm::clamp(frankie_cam_phi, -80.0f, 80.0f);
+        break;
+
+      case GLFW_KEY_R:
+        respawn_particles_cpu(positions, vitesses);
+        simulate_particles = false;
         break;
       
       case GLFW_KEY_S:
@@ -504,7 +536,7 @@ int main(int argc, char** argv)
   while (!glfwWindowShouldClose(window)) {
 
     double current_time = glfwGetTime();
-    double delta_time = current_time - prev_time;
+    delta_time = current_time - prev_time;
     prev_time = current_time;
 
     glClearColor(0.2f, 0.2f, 0.6f, 1.0f);
